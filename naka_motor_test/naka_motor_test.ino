@@ -12,16 +12,15 @@ int lp=1500,rp=1500;
 
 void messageCb(const geometry_msgs::Twist& twist) {
   const float linear_x = twist.linear.x;
-  const float angle_z = twist.angular.z;
-  rmo.writeMicroseconds(1500+300*(linear_x-angle_z));
-  // ここ１５００じゃない
-  // lmo.writeMicroseconds(15000-300*(linear_x+angle_z));
-  lmo.writeMicroseconds(1500-300*(linear_x+angle_z));
+  const float angle_z = twist.linear.y;
+  rmo.writeMicroseconds(1500+300*(linear_x+angle_z));
+  
+  lmo.writeMicroseconds(1500-300*(linear_x-angle_z));
 }
 
 ros::NodeHandle nh;
-//ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel", &messageCb);
-ros::Subscriber<geometry_msgs::Twist> sub("/ypspur_ros/cmd_vel", &messageCb);
+ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel", &messageCb);
+//ros::Subscriber<geometry_msgs::Twist> sub("/ypspur_ros/cmd_vel", &messageCb);
 void setup() {
   analogWriteFrequency(6, 20000);
   analogWriteFrequency(8, 20000);
