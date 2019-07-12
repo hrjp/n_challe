@@ -17,13 +17,18 @@ MD13S lmo(6, 5); //(PWM_PIN,invert_PIN)
 MD13S rmo(8,7);
 PS3I2C ps(0x73);
 int lp=1500,rp=1500;
+double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
 void messageCb(const geometry_msgs::Twist& twist) {
   const float linear_x = twist.linear.x;
-  const float angle_z = twist.linear.y;
-  rmo.writeMicroseconds(1500+300*(linear_x+angle_z));
-  
-  lmo.writeMicroseconds(1500-300*(linear_x-angle_z));
+  const float angle_z = twist.angular.z;
+  rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
+  lmo.writeMicroseconds(1500-100*(linear_x-angle_z));
+  if(twist.angular.x){
+    pos_x=0;
+    pos_y=0;
+    angle_offset=angle_rad;
+  }
 }
 
 ros::NodeHandle nh;
@@ -37,9 +42,7 @@ char base_link[] = "/base_link";
 char odom[] = "/odom";
 
 
-void EulerAnglesToQuaternion(double roll, double pitch, double yaw,
-                            double& q0, double& q1, double& q2, double& q3)
-{
+void EulerAnglesToQuaternion(double roll, double pitch, double yaw,double& q0, double& q1, double& q2, double& q3){
     double cosRoll = cos(roll / 2.0);
     double sinRoll = sin(roll / 2.0);
     double cosPitch = cos(pitch / 2.0);
@@ -83,13 +86,12 @@ void loop() {
   const double encoder_ppr=4096;
   const double wheel_size=150.0;
 
-  double angle_deg=((rpul-lpul)/2.0)*180.0*wheel_size/(encoder_ppr*wheel_width*0.5);
-  double angle_rad=angle_deg*PI/180;
+  angle_deg=((rpul-lpul)/2.0)*180.0*wheel_size/(encoder_ppr*wheel_width*0.5);
+  angle_rad=angle_deg*PI/180;
   static long pre_pul;
   long now_pul=rpul+lpul;
   double diff_pos=((now_pul-pre_pul)/2.0)*wheel_size*PI/encoder_ppr/1000.0;
   pre_pul=now_pul;
-  static double pos_y,pos_x;
   pos_y+=diff_pos*cos(angle_rad);
   pos_x+=diff_pos*sin(angle_rad);
 
@@ -97,10 +99,10 @@ void loop() {
 
   t.header.frame_id = odom;
   t.child_frame_id = base_link;
-  t.transform.translation.x = pos_x; 
+  t.transform.translation.x = -pos_x; 
   t.transform.translation.y = pos_y;
   double q[5];
-  EulerAnglesToQuaternion(0,0,angle_rad,q[0],q[1],q[2],q[3]);
+  EulerAnglesToQuaternion(0,0,angle_rad-angle_offset,q[0],q[1],q[2],q[3]);
   t.transform.rotation.x = q[1];
   t.transform.rotation.y = q[2]; 
   t.transform.rotation.z = q[3]; 
