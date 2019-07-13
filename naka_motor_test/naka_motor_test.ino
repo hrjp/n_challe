@@ -6,6 +6,7 @@
 #include <geometry_msgs/Twist.h>
 #include <ros/time.h>
 #include <tf/transform_broadcaster.h>
+#include <nav_msgs/Odometry.h>
 
 
 #include "Encoders.h"
@@ -33,10 +34,13 @@ void messageCb(const geometry_msgs::Twist& twist) {
 
 ros::NodeHandle nh;
 ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel", &messageCb);
-//ros::Subscriber<geometry_msgs::Twist> sub("/ypspur_ros/cmd_vel", &messageCb);
 
 geometry_msgs::TransformStamped t;
+geometry_msgs::Twist send_pos;
+//ros::Publisher chatter("robot_msg", &send_pos);
+
 tf::TransformBroadcaster broadcaster;
+
  
 char base_link[] = "/base_link";
 char odom[] = "/odom";
@@ -85,22 +89,31 @@ void loop() {
   const double wheel_width=480.0;
   const double encoder_ppr=4096;
   const double wheel_size=150.0;
-
+  static unsigned long pre_t=0;
+  double dt=(micros()-pre_t)/1000000.0;
+  pre_t=micros();
+  static double pre_rad;
   angle_deg=((rpul-lpul)/2.0)*180.0*wheel_size/(encoder_ppr*wheel_width*0.5);
   angle_rad=angle_deg*PI/180;
   static long pre_pul;
   long now_pul=rpul+lpul;
   double diff_pos=((now_pul-pre_pul)/2.0)*wheel_size*PI/encoder_ppr/1000.0;
   pre_pul=now_pul;
+
   pos_y+=diff_pos*cos(angle_rad);
   pos_x+=diff_pos*sin(angle_rad);
-
+  double vel_x=diff_pos*cos(angle_rad)/dt;
+  double vel_y=diff_pos*sin(angle_rad)/dt;
+  double vel_z=(angle_rad-pre_rad)/dt;
+  angle_rad=pre_rad;
 //tf
 
   t.header.frame_id = odom;
   t.child_frame_id = base_link;
-  t.transform.translation.x = -pos_x; 
-  t.transform.translation.y = pos_y;
+  //t.transform.translation.x = -pos_x; 
+  //t.transform.translation.y = pos_y;
+  t.transform.translation.x = pos_y; 
+  t.transform.translation.y = pos_x;
   double q[5];
   EulerAnglesToQuaternion(0,0,angle_rad-angle_offset,q[0],q[1],q[2],q[3]);
   t.transform.rotation.x = q[1];
@@ -109,7 +122,16 @@ void loop() {
   t.transform.rotation.w = q[0];  
   t.header.stamp = nh.now();
   broadcaster.sendTransform(t);
-  
+
+  //twist_pub
+
+  send_pos.linear.x=-pos_x;
+  send_pos.linear.y=pos_y;
+  send_pos.linear.z=angle_rad-angle_offset;
+  send_pos.angular.x=-vel_x;
+  send_pos.angular.y=vel_y;
+  send_pos.angular.z=vel_z;
+  //chatter.publish( &send_pos );
   
    nh.spinOnce();
 }
