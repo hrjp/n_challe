@@ -8,10 +8,12 @@
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
 
+#include "Gyro_fast.h"
 
 #include "Encoders.h"
 #include<cout.h>
 ENCODERS Encoders(45,48);
+Gyro_fast gyro;
 
 int x, y, z;
 MD13S lmo(6, 5); //(PWM_PIN,invert_PIN)
@@ -61,6 +63,11 @@ void EulerAnglesToQuaternion(double roll, double pitch, double yaw,double& q0, d
 }
 
 void setup() {
+   Wire.begin();
+   Wire.setSDA(34);
+   Wire.setSCL(33);
+   Wire.setClock(400000UL);
+   gyro.set();
   analogWriteFrequency(6, 20000);
   analogWriteFrequency(8, 20000);
   pinMode(13,OUTPUT);
@@ -80,7 +87,7 @@ void setup() {
 }
 
 void loop() {
-
+  gyro.update();
   //odometry
   long rpul= Encoders.Encoder1.read_pulse();
   long lpul= -Encoders.Encoder2.read_pulse();
@@ -94,14 +101,15 @@ void loop() {
   pre_t=micros();
   static double pre_rad;
   angle_deg=((rpul-lpul)/2.0)*180.0*wheel_size/(encoder_ppr*wheel_width*0.5);
-  angle_rad=angle_deg*PI/180;
+  //angle_rad=angle_deg*PI/180;
+  angle_rad=-gyro.rad();
   static long pre_pul;
   long now_pul=rpul+lpul;
   double diff_pos=((now_pul-pre_pul)/2.0)*wheel_size*PI/encoder_ppr/1000.0;
   pre_pul=now_pul;
 
-  pos_y+=diff_pos*cos(angle_rad);
-  pos_x+=diff_pos*sin(angle_rad);
+  pos_y+=diff_pos*cos((angle_rad+pre_rad)/2.0);
+  pos_x+=diff_pos*sin((angle_rad+pre_rad)/2.0);
   double vel_x=diff_pos*cos(angle_rad)/dt;
   double vel_y=diff_pos*sin(angle_rad)/dt;
   double vel_z=(angle_rad-pre_rad)/dt;
@@ -114,12 +122,13 @@ void loop() {
   //t.transform.translation.y = pos_y;
   t.transform.translation.x = pos_y; 
   t.transform.translation.y = pos_x;
-  double q[5];
-  EulerAnglesToQuaternion(0,0,angle_rad-angle_offset,q[0],q[1],q[2],q[3]);
-  t.transform.rotation.x = q[1];
-  t.transform.rotation.y = q[2]; 
-  t.transform.rotation.z = q[3]; 
-  t.transform.rotation.w = q[0];  
+  double qu[5];
+  EulerAnglesToQuaternion(0,0,angle_rad-angle_offset,qu[0],qu[1],qu[2],qu[3]);
+  
+  t.transform.rotation.x = qu[1];
+  t.transform.rotation.y = qu[2]; 
+  t.transform.rotation.z = qu[3]; 
+  t.transform.rotation.w = qu[0]; 
   t.header.stamp = nh.now();
   broadcaster.sendTransform(t);
 
