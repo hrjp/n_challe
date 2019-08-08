@@ -23,10 +23,10 @@ int lp=1500,rp=1500;
 double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
 void messageCb(const geometry_msgs::Twist& twist) {
-  const float linear_x = twist.linear.x;
-  const float angle_z = 0.7*twist.angular.z;
-  rmo.writeMicroseconds(1500+150*(linear_x+angle_z));
-  lmo.writeMicroseconds(1500-150*(linear_x-angle_z));
+  const float linear_x = 6*twist.linear.x;
+  const float angle_z = 0.5*twist.angular.z;
+  rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
+  lmo.writeMicroseconds(1500-100*(linear_x-angle_z));
   if(twist.angular.x){
     pos_x=0;
     pos_y=0;
