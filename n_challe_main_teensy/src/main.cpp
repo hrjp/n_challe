@@ -12,6 +12,8 @@
 
 #include "Encoders.h"
 #include<cout.h>
+#include"Vector.h"
+#include"PID_lib.h"
 ENCODERS Encoders(45,48);
 Gyro_fast gyro;
 
@@ -22,9 +24,16 @@ PS3I2C ps(0x73);
 int lp=1500,rp=1500;
 double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
+Vector body_vel;
+Vector target_vel;
+PID r_vel(2.0,0.1,0.1);
+PID l_vel(2.0,0.1,0.1);
+
 void messageCb(const geometry_msgs::Twist& twist) {
   const float linear_x = 6*twist.linear.x;
   const float angle_z = 0.5*twist.angular.z;
+  target_vel.y=twist.linear.x;
+  target_vel.z=twist.angular.z;
   rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
   lmo.writeMicroseconds(1500-100*(linear_x-angle_z));
   if(twist.angular.x){
@@ -88,6 +97,7 @@ void setup() {
 
 void loop() {
   gyro.update();
+
   //odometry
   long rpul= Encoders.Encoder1.read_pulse();
   long lpul= -Encoders.Encoder2.read_pulse();
@@ -110,10 +120,14 @@ void loop() {
 
   pos_y+=diff_pos*cos((angle_rad+pre_rad)/2.0);
   pos_x+=diff_pos*sin((angle_rad+pre_rad)/2.0);
+
+  double vel_liner=diff_pos/dt;
   double vel_x=diff_pos*cos(angle_rad)/dt;
   double vel_y=diff_pos*sin(angle_rad)/dt;
   double vel_z=(angle_rad-pre_rad)/dt;
   pre_rad=angle_rad;
+  body_vel.y=vel_liner;
+  body_bel.z=vel_z;
 //tf
 
   t.header.frame_id = odom;
@@ -132,15 +146,9 @@ void loop() {
   t.header.stamp = nh.now();
   broadcaster.sendTransform(t);
 
-  //twist_pub
-
-  send_pos.linear.x=-pos_x;
-  send_pos.linear.y=pos_y;
-  send_pos.linear.z=angle_rad-angle_offset;
-  send_pos.angular.x=-vel_x;
-  send_pos.angular.y=vel_y;
-  send_pos.angular.z=vel_z;
-  //chatter.publish( &send_pos );
+  
+  //速度制御
+  r_vel.update()
   
    nh.spinOnce();
 }

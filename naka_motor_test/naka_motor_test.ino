@@ -8,10 +8,14 @@
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
 
+#include "Gyro_fast.h"
 
 #include "Encoders.h"
 #include<cout.h>
+#include"Vector.h"
+#include"PID_lib.h"
 ENCODERS Encoders(45,48);
+Gyro_fast gyro;
 
 int x, y, z;
 MD13S lmo(6, 5); //(PWM_PIN,invert_PIN)
@@ -20,11 +24,18 @@ PS3I2C ps(0x73);
 int lp=1500,rp=1500;
 double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
+Vector body_vel;
+Vector target_vel;
+PID r_vel(100.0,50,0.1);
+PID l_vel(100.0,50,0.1);
+
 void messageCb(const geometry_msgs::Twist& twist) {
-  const float linear_x = twist.linear.x;
-  const float angle_z = 0.7*twist.angular.z;
-  rmo.writeMicroseconds(1500+150*(linear_x+angle_z));
-  lmo.writeMicroseconds(1500-150*(linear_x-angle_z));
+  const float linear_x = 6*twist.linear.x;
+  const float angle_z = 0.5*twist.angular.z;
+  target_vel.y=twist.linear.x;
+  target_vel.yaw=twist.angular.z;
+  //rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
+  //lmo.writeMicroseconds(1500-100*(linear_x-angle_z));
   if(twist.angular.x){
     pos_x=0;
     pos_y=0;
@@ -61,6 +72,11 @@ void EulerAnglesToQuaternion(double roll, double pitch, double yaw,double& q0, d
 }
 
 void setup() {
+   Wire.begin();
+   Wire.setSDA(34);
+   Wire.setSCL(33);
+   Wire.setClock(400000UL);
+   gyro.set();
   analogWriteFrequency(6, 20000);
   analogWriteFrequency(8, 20000);
   pinMode(13,OUTPUT);
@@ -80,6 +96,7 @@ void setup() {
 }
 
 void loop() {
+  gyro.update();
 
   //odometry
   long rpul= Encoders.Encoder1.read_pulse();
@@ -94,18 +111,23 @@ void loop() {
   pre_t=micros();
   static double pre_rad;
   angle_deg=((rpul-lpul)/2.0)*180.0*wheel_size/(encoder_ppr*wheel_width*0.5);
-  angle_rad=angle_deg*PI/180;
+  //angle_rad=angle_deg*PI/180;
+  angle_rad=-gyro.rad();
   static long pre_pul;
   long now_pul=rpul+lpul;
   double diff_pos=((now_pul-pre_pul)/2.0)*wheel_size*PI/encoder_ppr/1000.0;
   pre_pul=now_pul;
 
-  pos_y+=diff_pos*cos(angle_rad);
-  pos_x+=diff_pos*sin(angle_rad);
+  pos_y+=diff_pos*cos((angle_rad+pre_rad)/2.0);
+  pos_x+=diff_pos*sin((angle_rad+pre_rad)/2.0);
+
+  double vel_liner=diff_pos/dt;
   double vel_x=diff_pos*cos(angle_rad)/dt;
   double vel_y=diff_pos*sin(angle_rad)/dt;
   double vel_z=(angle_rad-pre_rad)/dt;
   pre_rad=angle_rad;
+  body_vel.y=vel_liner;
+  body_vel.yaw=vel_z;
 //tf
 
   t.header.frame_id = odom;
@@ -114,25 +136,22 @@ void loop() {
   //t.transform.translation.y = pos_y;
   t.transform.translation.x = pos_y; 
   t.transform.translation.y = pos_x;
-  double q[5];
-  EulerAnglesToQuaternion(0,0,angle_rad-angle_offset,q[0],q[1],q[2],q[3]);
-  t.transform.rotation.x = q[1];
-  t.transform.rotation.y = q[2]; 
-  t.transform.rotation.z = q[3]; 
-  t.transform.rotation.w = q[0];  
+  double qu[5];
+  EulerAnglesToQuaternion(0,0,angle_rad-angle_offset,qu[0],qu[1],qu[2],qu[3]);
+  
+  t.transform.rotation.x = qu[1];
+  t.transform.rotation.y = qu[2]; 
+  t.transform.rotation.z = qu[3]; 
+  t.transform.rotation.w = qu[0]; 
   t.header.stamp = nh.now();
   broadcaster.sendTransform(t);
 
-  //twist_pub
-
-  send_pos.linear.x=-pos_x;
-  send_pos.linear.y=pos_y;
-  send_pos.linear.z=angle_rad-angle_offset;
-  send_pos.angular.x=-vel_x;
-  send_pos.angular.y=vel_y;
-  send_pos.angular.z=vel_z;
-  //chatter.publish( &send_pos );
   
+  //速度制御
+  r_vel.update(body_vel.y+body_vel.yaw,target_vel.y+target_vel.yaw);
+  l_vel.update(body_vel.y-body_vel.yaw,target_vel.y-target_vel.yaw);
+  rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-500,500));
+  lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-500,500));
    nh.spinOnce();
 }
 
