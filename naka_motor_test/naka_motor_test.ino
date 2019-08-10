@@ -30,10 +30,12 @@ PID r_vel(200.0,1000,20);
 PID l_vel(200.0,1000,20);
 
 void messageCb(const geometry_msgs::Twist& twist) {
-  const float linear_x = 6*twist.linear.x;
-  const float angle_z = 0.5*twist.angular.z;
-  //target_vel.y=twist.linear.x;
-  //target_vel.yaw=twist.angular.z;
+  //const float linear_x = 6*twist.linear.x;
+  //const float angle_z = 0.5*twist.angular.z;
+
+  target_vel.y=2.0*twist.linear.x;
+  target_vel.yaw=twist.angular.z;
+
   //rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
   //lmo.writeMicroseconds(1500-100*(linear_x-angle_z));
   if(twist.angular.x){
@@ -89,7 +91,7 @@ void setup() {
   Encoders.Encoder2.set(4096);
   Encoders.set(8192);
   
-  ps.set();
+  //ps.set();
   // put your setup code here, to run once:
   lmo.set();
   rmo.set();
@@ -97,9 +99,10 @@ void setup() {
 
 void loop() {
   gyro.update();
-  ps.update();
-  target_vel.y=(255-ps.A_Ly())/127.5-1.0;
-  target_vel.yaw=(255-ps.A_Rx())/127.5-1.0;
+  //ps.update();
+
+  //target_vel.y=(255-ps.A_Ly())/127.5-1.0;
+  //target_vel.yaw=(255-ps.A_Rx())/127.5-1.0;
 
   //odometry
   long rpul= Encoders.Encoder1.read_pulse();
@@ -161,21 +164,24 @@ double l_rot=-Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
 
   
   //速度制御
+  const int max_power=200;
   r_vel.update(r_rot,target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw);
   l_vel.update(l_rot,target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw);
   int dir_r=(target_vel.y+target_vel.yaw)>0;
   int dir_l=(target_vel.y-target_vel.yaw)>0;
   if(-0.05<(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)<0.05){
     rmo.writeMicroseconds(1500);
+    r_vel.reset_i();
   }
   else{
-    rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-500*!dir_r,500*dir_r));
+    rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-max_power*!dir_r,max_power*dir_r));
   }
   if(-0.05<(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)<0.05){
     lmo.writeMicroseconds(1500);
+    l_vel.reset_i();
   }
   else{
-    lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-500*!dir_l,500*dir_l));
+    lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-max_power*!dir_l,max_power*dir_l));
   }
    nh.spinOnce();
    cout<<r_rot<<","<<target_vel.y+target_vel.yaw<<endl;
