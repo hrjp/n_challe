@@ -26,14 +26,14 @@ double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
 Vector body_vel;
 Vector target_vel;
-PID r_vel(100.0,50,0.1);
-PID l_vel(100.0,50,0.1);
+PID r_vel(200.0,1000,20);
+PID l_vel(200.0,1000,20);
 
 void messageCb(const geometry_msgs::Twist& twist) {
   const float linear_x = 6*twist.linear.x;
   const float angle_z = 0.5*twist.angular.z;
-  target_vel.y=twist.linear.x;
-  target_vel.yaw=twist.angular.z;
+  //target_vel.y=twist.linear.x;
+  //target_vel.yaw=twist.angular.z;
   //rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
   //lmo.writeMicroseconds(1500-100*(linear_x-angle_z));
   if(twist.angular.x){
@@ -89,7 +89,7 @@ void setup() {
   Encoders.Encoder2.set(4096);
   Encoders.set(8192);
   
-  // ps.set();
+  ps.set();
   // put your setup code here, to run once:
   lmo.set();
   rmo.set();
@@ -97,6 +97,9 @@ void setup() {
 
 void loop() {
   gyro.update();
+  ps.update();
+  target_vel.y=(255-ps.A_Ly())/127.5-1.0;
+  target_vel.yaw=(255-ps.A_Rx())/127.5-1.0;
 
   //odometry
   long rpul= Encoders.Encoder1.read_pulse();
@@ -128,6 +131,16 @@ void loop() {
   pre_rad=angle_rad;
   body_vel.y=vel_liner;
   body_vel.yaw=vel_z;
+//タイヤ回転速度の計算
+/*
+static long pre_rpul,pre_lpul;
+double r_rot=(rpul-pre_rpul)*wheel_size*PI/encoder_ppr/1000.0/dt;
+double l_rot=(lpul-pre_lpul)*wheel_size*PI/encoder_ppr/1000.0/dt;
+pre_rpul=rpul;
+pre_lpul=lpul;
+*/
+double r_rot=Encoders.Encoder1.read_rpm()*PI/60.0*wheel_size/1000.0;
+double l_rot=-Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
 //tf
 
   t.header.frame_id = odom;
@@ -148,11 +161,24 @@ void loop() {
 
   
   //速度制御
-  r_vel.update(body_vel.y+body_vel.yaw,target_vel.y+target_vel.yaw);
-  l_vel.update(body_vel.y-body_vel.yaw,target_vel.y-target_vel.yaw);
-  rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-500,500));
-  lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-500,500));
+  r_vel.update(r_rot,target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw);
+  l_vel.update(l_rot,target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw);
+  int dir_r=(target_vel.y+target_vel.yaw)>0;
+  int dir_l=(target_vel.y-target_vel.yaw)>0;
+  if(-0.05<(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)<0.05){
+    rmo.writeMicroseconds(1500);
+  }
+  else{
+    rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-500*!dir_r,500*dir_r));
+  }
+  if(-0.05<(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)<0.05){
+    lmo.writeMicroseconds(1500);
+  }
+  else{
+    lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-500*!dir_l,500*dir_l));
+  }
    nh.spinOnce();
+   cout<<r_rot<<","<<target_vel.y+target_vel.yaw<<endl;
 }
 
 //platformio_add
