@@ -1,3 +1,4 @@
+//#include <Arduino.h>
 #include "Cytron_MD13S.h"
 #include"ps3i2clib.h"
 //#include<cout.h>
@@ -14,6 +15,14 @@
 #include<cout.h>
 #include"Vector.h"
 #include"PID_lib.h"
+
+
+//1:rosからのcmd_velで動く
+//0:rosを介さずコントローラの値で動く
+
+
+
+
 ENCODERS Encoders(45,48);
 Gyro_fast gyro;
 
@@ -26,16 +35,18 @@ double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
 Vector body_vel;
 Vector target_vel;
-PID r_vel(200.0,1000,20);
-PID l_vel(200.0,1000,20);
+PID r_vel(150.0,1000,200);
+PID l_vel(150.0,1000,200);
+
+bool using_cmd_vel;
 
 void messageCb(const geometry_msgs::Twist& twist) {
   //const float linear_x = 6*twist.linear.x;
   //const float angle_z = 0.5*twist.angular.z;
-
-  target_vel.y=2.0*twist.linear.x;
-  target_vel.yaw=twist.angular.z;
-
+  if(using_cmd_vel){
+    target_vel.y=1.5*twist.linear.x;
+    target_vel.yaw=0.5*twist.angular.z;
+  }
   //rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
   //lmo.writeMicroseconds(1500-100*(linear_x-angle_z));
   if(twist.angular.x){
@@ -86,9 +97,9 @@ void setup() {
   nh.initNode();
   nh.subscribe(sub);
   broadcaster.init(nh);
-
-  Encoders.Encoder1.set(4096);
-  Encoders.Encoder2.set(4096);
+  pinMode(30,INPUT_PULLUP);
+  Encoders.Encoder1.set(8192);
+  Encoders.Encoder2.set(8192);
   Encoders.set(8192);
   
   //ps.set();
@@ -99,19 +110,29 @@ void setup() {
 
 void loop() {
   gyro.update();
-  //ps.update();
+  ps.update();
+  using_cmd_vel=digitalRead(30);
 
-  //target_vel.y=(255-ps.A_Ly())/127.5-1.0;
-  //target_vel.yaw=(255-ps.A_Rx())/127.5-1.0;
+  if(!using_cmd_vel){
+    target_vel.y=0.8*((255-ps.A_Ly())/127.5-1.0);
+    target_vel.yaw=0.7*((255-ps.A_Rx())/127.5-1.0);
+  }
 
   //odometry
-  long rpul= Encoders.Encoder1.read_pulse();
-  long lpul= -Encoders.Encoder2.read_pulse();
-
-
+  long rpul= -Encoders.Encoder1.read_pulse();
+  long lpul= Encoders.Encoder2.read_pulse();
+  //旧機体
+  /*
   const double wheel_width=480.0;
   const double encoder_ppr=4096;
   const double wheel_size=150.0;
+  */
+  //新機体
+  const double wheel_width=555.0;
+  const double encoder_ppr=8192;
+  const double wheel_size=300.0;
+
+
   static unsigned long pre_t=0;
   double dt=(micros()-pre_t)/1000000.0;
   pre_t=micros();
@@ -142,8 +163,8 @@ double l_rot=(lpul-pre_lpul)*wheel_size*PI/encoder_ppr/1000.0/dt;
 pre_rpul=rpul;
 pre_lpul=lpul;
 */
-double r_rot=Encoders.Encoder1.read_rpm()*PI/60.0*wheel_size/1000.0;
-double l_rot=-Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
+double r_rot=-Encoders.Encoder1.read_rpm()*PI/60.0*wheel_size/1000.0;
+double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
 //tf
 
   t.header.frame_id = odom;
@@ -164,19 +185,20 @@ double l_rot=-Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
 
   
   //速度制御
-  const int max_power=200;
+  const int max_power=300;
   r_vel.update(r_rot,target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw);
-  l_vel.update(l_rot,target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw);
+  l_vel.update(l_rot,1.02*(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw));
   int dir_r=(target_vel.y+target_vel.yaw)>0;
   int dir_l=(target_vel.y-target_vel.yaw)>0;
-  if(-0.05<(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)<0.05){
+
+  if(-0.03<(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
     rmo.writeMicroseconds(1500);
     r_vel.reset_i();
   }
   else{
     rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-max_power*!dir_r,max_power*dir_r));
   }
-  if(-0.05<(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)<0.05){
+  if(-0.03<(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
     lmo.writeMicroseconds(1500);
     l_vel.reset_i();
   }
@@ -184,7 +206,7 @@ double l_rot=-Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
     lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-max_power*!dir_l,max_power*dir_l));
   }
    nh.spinOnce();
-   cout<<r_rot<<","<<target_vel.y+target_vel.yaw<<endl;
+   //cout<<r_rot<<","<<target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw<<","<<gyro.rad()<<endl;
 }
 
 //platformio_add

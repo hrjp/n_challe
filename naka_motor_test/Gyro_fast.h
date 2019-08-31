@@ -54,10 +54,10 @@ void Gyro_fast::set(){
   mpu.initialize();
   devStatus = mpu.dmpInitialize();
   // supply your own gyro offsets here, scaled for min sensitivity
-  mpu.setXGyroOffset(3);
-  mpu.setYGyroOffset(-248);
-  mpu.setZGyroOffset(-60);
-  mpu.setZAccelOffset(1507); // 1688 factory default for my test chip
+  mpu.setXGyroOffset(-31);
+  mpu.setYGyroOffset(-247);
+  mpu.setZGyroOffset(-220);
+  mpu.setZAccelOffset(1455); // 1688 factory default for my test chip
   if (devStatus == 0) {
     mpu.setDMPEnabled(true);
         attachInterrupt(0, dmpDataReady, RISING);
