@@ -145,8 +145,8 @@ void loop() {
   double diff_pos=((now_pul-pre_pul)/2.0)*wheel_size*PI/encoder_ppr/1000.0;
   pre_pul=now_pul;
 
-  pos_y+=diff_pos*cos((angle_rad+pre_rad)/2.0);
-  pos_x+=diff_pos*sin((angle_rad+pre_rad)/2.0);
+  pos_y+=diff_pos*cos((angle_rad+pre_rad)/2.0-angle_offset);
+  pos_x+=diff_pos*sin((angle_rad+pre_rad)/2.0-angle_offset);
 
   double vel_liner=diff_pos/dt;
   double vel_x=diff_pos*cos(angle_rad)/dt;
@@ -187,7 +187,7 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   //速度制御
   const int max_power=300;
   r_vel.update(r_rot,target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw);
-  l_vel.update(l_rot,1.02*(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw));
+  l_vel.update(l_rot,(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw));
   int dir_r=(target_vel.y+target_vel.yaw)>0;
   int dir_l=(target_vel.y-target_vel.yaw)>0;
 
@@ -207,6 +207,13 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   }
    nh.spinOnce();
    //cout<<r_rot<<","<<target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw<<","<<gyro.rad()<<endl;
+   cout<<"X="<<pos_x<<"Y="<<pos_y<<"YAW="<<angle_rad-angle_offset<<endl;
+
+   if(ps.C_Select()){
+    pos_x=0;
+    pos_y=0;
+    angle_offset=angle_rad;
+  }
 }
 
 //platformio_add
