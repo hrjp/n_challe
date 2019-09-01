@@ -130,7 +130,7 @@ void loop() {
   //新機体
   const double wheel_width=555.0;
   const double encoder_ppr=8192;
-  const double wheel_size=300.0;
+  const double wheel_size=315.0;
 
 
   static unsigned long pre_t=0;
