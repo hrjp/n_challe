@@ -35,8 +35,8 @@ double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
 Vector body_vel;
 Vector target_vel;
-PID r_vel(150.0,1000,200);
-PID l_vel(150.0,1000,200);
+PID r_vel(150.0,1000,100);
+PID l_vel(150.0,1000,100);
 
 bool using_cmd_vel;
 
@@ -44,7 +44,7 @@ void messageCb(const geometry_msgs::Twist& twist) {
   //const float linear_x = 6*twist.linear.x;
   //const float angle_z = 0.5*twist.angular.z;
   if(using_cmd_vel){
-    target_vel.y=1.5*twist.linear.x;
+    target_vel.y=1.8*twist.linear.x;
     target_vel.yaw=0.5*twist.angular.z;
   }
   //rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
@@ -106,6 +106,8 @@ void setup() {
   // put your setup code here, to run once:
   lmo.set();
   rmo.set();
+  r_vel.max_i(0.3);
+  l_vel.max_i(0.3);
 }
 
 void loop() {
@@ -191,29 +193,37 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   int dir_r=(target_vel.y+target_vel.yaw)>0;
   int dir_l=(target_vel.y-target_vel.yaw)>0;
 
-  if(-0.03<(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
-    rmo.writeMicroseconds(1500);
-    r_vel.reset_i();
+  //モータへの出力
+  if(using_cmd_vel){
+    if(-0.03<(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
+      rmo.writeMicroseconds(1500);
+      r_vel.reset_i();
+    }
+    else{
+      rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-max_power*!dir_r,max_power*dir_r));
+    }
+    if(-0.03<(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
+      lmo.writeMicroseconds(1500);
+      l_vel.reset_i();
+    }
+    else{
+      lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-max_power*!dir_l,max_power*dir_l));
+    }
   }
   else{
-    rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-max_power*!dir_r,max_power*dir_r));
-  }
-  if(-0.03<(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
-    lmo.writeMicroseconds(1500);
-    l_vel.reset_i();
-  }
-  else{
-    lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-max_power*!dir_l,max_power*dir_l));
+    rmo.writeMicroseconds(map(0.6*(ps.A_Ly()+ps.A_Rx()-255),127,-127,1500-max_power,1500+max_power));
+    lmo.writeMicroseconds(map(0.6*(ps.A_Ly()-ps.A_Rx()),-127,127,1500-max_power,1500+max_power));
   }
    nh.spinOnce();
    //cout<<r_rot<<","<<target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw<<","<<gyro.rad()<<endl;
-   cout<<"X="<<pos_x<<"Y="<<pos_y<<"YAW="<<angle_rad-angle_offset<<endl;
+   //cout<<"X="<<pos_x<<"Y="<<pos_y<<"YAW="<<angle_rad-angle_offset<<endl;
 
    if(ps.C_Select()){
     pos_x=0;
     pos_y=0;
     angle_offset=angle_rad;
   }
+
 }
 
 //platformio_add

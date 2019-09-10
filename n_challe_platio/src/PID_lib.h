@@ -48,6 +48,9 @@ class PID{
     //積分値をリセットする関数。
     void reset_i();
 
+    //積分の上限値
+    void max_i(float max_i_);
+
 
     private:
 
@@ -56,6 +59,7 @@ class PID{
     float res_p,res_i,res_d,res_prep;
     float result_value;
     unsigned long pretime;
+    float imax=100000000;
 
 };
 
@@ -79,7 +83,7 @@ void loop(){
   pid.update(analogRead(A0),terget);//現在値に可変抵抗のアナログ値,目標値にtergetを渡す
   m.writeMicroseconds(1500+pid.result_val());//PID制御の計算結果をモーターの出力にする
 }
- 
+
  */
 
 
@@ -129,8 +133,10 @@ float PID::update(float local_val,float target_val){
     res_p=target_val-local_val;
     res_i+=res_p*dt;
     res_d=(res_p-res_prep)/dt;
-
+    res_i=res_i>imax?imax:res_i;
+    res_i=res_i<(-imax)?-imax:res_i;
     res_prep=res_p;
+    Serial.println(res_i);
 
     result_value=kpp*res_p+kii*res_i+kdd*res_d;
     return result_value;
@@ -156,6 +162,10 @@ void PID::reset_i(){
 
 float PID::result_val(){
     return result_value;
+}
+
+void PID::max_i(float max_i_){
+  imax=max_i_;
 }
 
 
