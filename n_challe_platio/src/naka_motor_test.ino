@@ -10,7 +10,6 @@
 #include <nav_msgs/Odometry.h>
 
 #include "Gyro_fast.h"
-
 #include "Encoders.h"
 #include<cout.h>
 #include"Vector.h"
@@ -35,8 +34,8 @@ double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
 Vector body_vel;
 Vector target_vel;
-PID r_vel(150.0,1000,100);
-PID l_vel(150.0,1000,100);
+PID r_vel(100.0,1000,200);
+PID l_vel(100.0,1000,200);
 
 bool using_cmd_vel;
 
@@ -57,7 +56,7 @@ void messageCb(const geometry_msgs::Twist& twist) {
 }
 
 ros::NodeHandle nh;
-ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel", &messageCb);
+ros::Subscriber<geometry_msgs::Twist> sub("final_cmd_vel", &messageCb);
 
 geometry_msgs::TransformStamped t;
 geometry_msgs::Twist send_pos;
@@ -192,6 +191,11 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   l_vel.update(l_rot,(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw));
   int dir_r=(target_vel.y+target_vel.yaw)>0;
   int dir_l=(target_vel.y-target_vel.yaw)>0;
+  /*
+  if(abs(r_rot)<0.01&&abs(l_rot)<0.01){
+    r_vel.reset_i();
+    l_vel.reset_i();
+  }*/
 
   //モータへの出力
   if(using_cmd_vel){
