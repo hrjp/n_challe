@@ -14,6 +14,7 @@
 #include<cout.h>
 #include"Vector.h"
 #include"PID_lib.h"
+#include "Pixy_analog.h"
 
 
 //1:rosからのcmd_velで動く
@@ -38,6 +39,8 @@ PID r_vel(100.0,1000,200);
 PID l_vel(100.0,1000,200);
 
 bool using_cmd_vel;
+
+Pixy_analog pixy(A7);
 
 void messageCb(const geometry_msgs::Twist& twist) {
   //const float linear_x = 6*twist.linear.x;
@@ -112,6 +115,7 @@ void setup() {
 void loop() {
   gyro.update();
   ps.update();
+  pixy.update();
   using_cmd_vel=digitalRead(30);
 
   if(!using_cmd_vel){
@@ -221,12 +225,12 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
    nh.spinOnce();
    //cout<<r_rot<<","<<target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw<<","<<gyro.rad()<<endl;
    //cout<<"X="<<pos_x<<"Y="<<pos_y<<"YAW="<<angle_rad-angle_offset<<endl;
-
+/*
    if(ps.C_Select()){
     pos_x=0;
     pos_y=0;
     angle_offset=angle_rad;
-  }
+  }*/
 
 }
 
