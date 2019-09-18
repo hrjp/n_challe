@@ -38,24 +38,31 @@ Vector target_vel;
 PID r_vel(100.0,1000,200);
 PID l_vel(100.0,1000,200);
 
-bool using_cmd_vel;
+PID pixypid(0.3,0.0,0.1);
+PID dispid(100.0,0.0,10);
 
+bool using_cmd_vel;
+bool ditect_mode;
 Pixy_analog pixy(A7);
 
 void messageCb(const geometry_msgs::Twist& twist) {
   //const float linear_x = 6*twist.linear.x;
   //const float angle_z = 0.5*twist.angular.z;
-  if(using_cmd_vel){
+  //if(using_cmd_vel){
     target_vel.y=1.8*twist.linear.x;
     target_vel.yaw=0.5*twist.angular.z;
-  }
+    target_vel.x=twist.linear.y;
+    ditect_mode=twist.angular.x;
+  //}
   //rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
   //lmo.writeMicroseconds(1500-100*(linear_x-angle_z));
+  /*
   if(twist.angular.x){
     pos_x=0;
     pos_y=0;
     angle_offset=angle_rad;
   }
+  */
 }
 
 ros::NodeHandle nh;
@@ -117,11 +124,13 @@ void loop() {
   ps.update();
   pixy.update();
   using_cmd_vel=digitalRead(30);
-
+/*
   if(!using_cmd_vel){
     target_vel.y=0.8*((255-ps.A_Ly())/127.5-1.0);
     target_vel.yaw=0.7*((255-ps.A_Rx())/127.5-1.0);
   }
+*/
+
 
   //odometry
   long rpul= -Encoders.Encoder1.read_pulse();
@@ -160,6 +169,7 @@ void loop() {
   pre_rad=angle_rad;
   body_vel.y=vel_liner;
   body_vel.yaw=vel_z;
+
 //タイヤ回転速度の計算
 /*
 static long pre_rpul,pre_lpul;
@@ -170,6 +180,8 @@ pre_lpul=lpul;
 */
 double r_rot=-Encoders.Encoder1.read_rpm()*PI/60.0*wheel_size/1000.0;
 double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
+
+
 //tf
 
   t.header.frame_id = odom;
@@ -178,6 +190,8 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   //t.transform.translation.y = pos_y;
   t.transform.translation.x = pos_y;
   t.transform.translation.y = pos_x;
+  //t.transform.translation.x = -pos_x;
+  //t.transform.translation.y = -pos_y;
   double qu[5];
   EulerAnglesToQuaternion(0,0,angle_rad-angle_offset,qu[0],qu[1],qu[2],qu[3]);
 
@@ -201,27 +215,45 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
     l_vel.reset_i();
   }*/
 
-  //モータへの出力
+  //人検出の処理
+  const int max_power_dis=150;
+  pixypid.update(pixy.point_x(),0);
+  dispid.update(target_vel.x,0.5);
+
+  int dis_result=constrain(dispid.result_val(),-max_power_dis,max_power_dis);
+
+
+//モータへの出力/////////////////////////////////////
   if(using_cmd_vel){
-    if(-0.03<(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
-      rmo.writeMicroseconds(1500);
-      r_vel.reset_i();
+//人検出
+    if(ditect_mode){
+      rmo.writeMicroseconds(1500+constrain(pixypid.result_val()-dis_result,-max_power,max_power));
+      lmo.writeMicroseconds(1500+constrain(pixypid.result_val()+dis_result,-max_power,max_power));
     }
+//cmd_velで走行
     else{
-      rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-max_power*!dir_r,max_power*dir_r));
-    }
-    if(-0.03<(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
-      lmo.writeMicroseconds(1500);
-      l_vel.reset_i();
-    }
-    else{
-      lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-max_power*!dir_l,max_power*dir_l));
+      if(-0.03<(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
+        rmo.writeMicroseconds(1500);
+        r_vel.reset_i();
+      }
+      else{
+        rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-max_power*!dir_r,max_power*dir_r));
+      }
+      if(-0.03<(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
+        lmo.writeMicroseconds(1500);
+        l_vel.reset_i();
+      }
+      else{
+        lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-max_power*!dir_l,max_power*dir_l));
+      }
     }
   }
+//コントローラから操作
   else{
     rmo.writeMicroseconds(map(0.6*(ps.A_Ly()+ps.A_Rx()-255),127,-127,1500-max_power,1500+max_power));
     lmo.writeMicroseconds(map(0.6*(ps.A_Ly()-ps.A_Rx()),-127,127,1500-max_power,1500+max_power));
   }
+
    nh.spinOnce();
    //cout<<r_rot<<","<<target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw<<","<<gyro.rad()<<endl;
    //cout<<"X="<<pos_x<<"Y="<<pos_y<<"YAW="<<angle_rad-angle_offset<<endl;

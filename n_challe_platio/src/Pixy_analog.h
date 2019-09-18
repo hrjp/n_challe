@@ -9,8 +9,8 @@ class Pixy_analog{
   int point_x();
   private:
   int pin_num_;
-  int val_min=100;
-  int val_max=900;
+  int val_min=50;
+  int val_max=950;
   bool flag_;
   int point;
 };
