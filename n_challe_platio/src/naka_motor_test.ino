@@ -42,7 +42,7 @@ PID pixypid(0.3,0.0,0.1);
 PID dispid(100.0,0.0,10);
 
 bool using_cmd_vel;
-bool ditect_mode;
+int ditect_mode;
 Pixy_analog pixy(A7);
 
 void messageCb(const geometry_msgs::Twist& twist) {
@@ -209,26 +209,73 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   l_vel.update(l_rot,(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw));
   int dir_r=(target_vel.y+target_vel.yaw)>0;
   int dir_l=(target_vel.y-target_vel.yaw)>0;
-  /*
+
   if(abs(r_rot)<0.01&&abs(l_rot)<0.01){
-    r_vel.reset_i();
-    l_vel.reset_i();
-  }*/
+    r_vel.max_i(0.1);
+    l_vel.max_i(0.1);
+  }
+  else{
+    r_vel.max_i(0.3);
+    l_vel.max_i(0.3);
+  }
 
   //人検出の処理
-  const int max_power_dis=150;
+  const int max_power_dis=110;
   pixypid.update(pixy.point_x(),0);
   dispid.update(target_vel.x,0.5);
 
   int dis_result=constrain(dispid.result_val(),-max_power_dis,max_power_dis);
 
+  //人検出シーケンス
+  static int sik=0;
+  static unsigned long wait_t=0;
+  static int pre_d=0;
+  static int gomi_mode=0;
+  const int ditect_time=5;
+  static int d_time=0;
+  if(sik==0&&(ditect_mode-pre_d==1)){
+    wait_t=millis();
+    sik++;
+  }
+  if(sik==1){
+    if(wait_t+20000<millis()){
+      sik++;
+    }
+  }
+  if(sik==2){
+    gomi_mode=true;
+    sik++;
+  }
+  if(sik==3){
+    if((target_vel.x<0.5)&&(pixy.finish(10))){
+      d_time++;
+    }
+    else{
+      d_time=0;
+    }
+    if(d_time>=ditect_time){
+      gomi_mode=2;
+    }
+  }
+  if(!ditect_mode){
+    sik=0;
+    gomi_mode=false;
+  }
+
+
+
+  pre_d=ditect_mode;
 
 //モータへの出力/////////////////////////////////////
   if(using_cmd_vel){
 //人検出
-    if(ditect_mode){
+    if(gomi_mode==1){
       rmo.writeMicroseconds(1500+constrain(pixypid.result_val()-dis_result,-max_power,max_power));
       lmo.writeMicroseconds(1500+constrain(pixypid.result_val()+dis_result,-max_power,max_power));
+    }
+    else if(gomi_mode==2){
+      rmo.writeMicroseconds(1500);
+      lmo.writeMicroseconds(1500);
     }
 //cmd_velで走行
     else{

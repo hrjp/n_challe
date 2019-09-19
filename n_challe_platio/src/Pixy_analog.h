@@ -7,6 +7,7 @@ class Pixy_analog{
   void update();
   bool flag();
   int point_x();
+  bool finish(int diff);
   private:
   int pin_num_;
   int val_min=50;
@@ -32,4 +33,8 @@ void Pixy_analog::update(){
   int readval=analogRead(pin_num_);
   flag_=val_min<readval&&readval<val_max;
   point=flag_*map(readval,val_min,val_max,-100,100);
+}
+
+bool Pixy_analog::finish(int diff){
+  return ((-diff<point&&point<diff)&&flag_);
 }
