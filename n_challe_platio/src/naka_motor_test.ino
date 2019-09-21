@@ -35,8 +35,20 @@ double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
 Vector body_vel;
 Vector target_vel;
-PID r_vel(100.0,1000,200);
-PID l_vel(100.0,1000,200);
+
+//* 190920_1730
+// PID r_vel(100.0,1500,350);
+// PID l_vel(100.0,1500,350);
+
+//* 190920_1731, GOOD?
+//PID r_vel(100.0,1000,350);
+//PID l_vel(120.0,1000,350);
+
+//* 190920_1731, Bad, Iの値で悪化しているよう
+// PID r_vel(120.0,1200,350);
+// PID l_vel(120.0,1200,350);
+PID r_vel(120.0,1000,350);
+PID l_vel(120.0,1000,350);
 
 PID pixypid(0.3,0.0,0.1);
 PID dispid(100.0,0.0,10);
@@ -231,7 +243,7 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   static unsigned long wait_t=0;
   static int pre_d=0;
   static int gomi_mode=0;
-  const int ditect_time=5;
+  const long ditect_time=500000;
   static int d_time=0;
   if(sik==0&&(ditect_mode-pre_d==1)){
     wait_t=millis();
