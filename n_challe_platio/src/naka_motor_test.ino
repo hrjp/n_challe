@@ -47,23 +47,25 @@ Vector target_vel;
 //* 190920_1731, Bad, Iの値で悪化しているよう
 // PID r_vel(120.0,1200,350);
 // PID l_vel(120.0,1200,350);
-PID r_vel(120.0,1000,350);
-PID l_vel(120.0,1000,350);
+PID r_vel(110.0,640,350);
+PID l_vel(110.0,640,350);
 
 PID pixypid(0.3,0.0,0.1);
 PID dispid(100.0,0.0,10);
 
 bool using_cmd_vel;
 int ditect_mode;
+double human_dis;
 Pixy_analog pixy(A7);
 
 void messageCb(const geometry_msgs::Twist& twist) {
   //const float linear_x = 6*twist.linear.x;
   //const float angle_z = 0.5*twist.angular.z;
   //if(using_cmd_vel){
-    target_vel.y=1.8*twist.linear.x;
-    target_vel.yaw=0.5*twist.angular.z;
+    target_vel.y=2.0*twist.linear.x;
+    target_vel.yaw=0.6*twist.angular.z;
     target_vel.x=twist.linear.y;
+    human_dis=twist.linear.y;
     ditect_mode=twist.angular.x;
   //}
   //rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
@@ -243,7 +245,7 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   static unsigned long wait_t=0;
   static int pre_d=0;
   static int gomi_mode=0;
-  const long ditect_time=500000;
+  const long ditect_time=5;
   static int d_time=0;
   if(sik==0&&(ditect_mode-pre_d==1)){
     wait_t=millis();
@@ -259,13 +261,15 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
     sik++;
   }
   if(sik==3){
-    if((target_vel.x<0.5)&&(pixy.finish(10))){
-      d_time++;
+    if(abs(target_vel.x)<0.8){
+      if(pixy.finish(10)){
+        d_time++;
+      }
     }
     else{
       d_time=0;
     }
-    if(d_time>=ditect_time){
+    if(d_time>ditect_time){
       gomi_mode=2;
     }
   }
