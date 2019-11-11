@@ -8,6 +8,8 @@
 #include <ros/time.h>
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
+#include <std_msgs/Float32.h>
+
 
 #include "Gyro_fast.h"
 #include "Encoders.h"
@@ -54,9 +56,9 @@ PID pixypid(0.3,0.0,0.1);
 PID dispid(100.0,0.0,10);
 
 bool using_cmd_vel;
-int ditect_mode;
-double human_dis;
-Pixy_analog pixy(A7);
+//int ditect_mode;
+//double human_dis;
+//Pixy_analog pixy(A7);
 
 void messageCb(const geometry_msgs::Twist& twist) {
   //const float linear_x = 6*twist.linear.x;
@@ -65,8 +67,8 @@ void messageCb(const geometry_msgs::Twist& twist) {
     target_vel.y=2.0*twist.linear.x;
     target_vel.yaw=0.6*twist.angular.z;
     target_vel.x=twist.linear.y;
-    human_dis=twist.linear.y;
-    ditect_mode=twist.angular.x;
+    //human_dis=twist.linear.y;
+    //ditect_mode=twist.angular.x;
   //}
   //rmo.writeMicroseconds(1500+100*(linear_x+angle_z));
   //lmo.writeMicroseconds(1500-100*(linear_x-angle_z));
@@ -91,6 +93,9 @@ tf::TransformBroadcaster broadcaster;
 
 char base_link[] = "/base_link";
 char odom[] = "/odom";
+
+std_msgs::Float32 odometry;
+ros::Publisher odometry_pub("robot_odom", &odometry);
 
 
 void EulerAnglesToQuaternion(double roll, double pitch, double yaw,double& q0, double& q1, double& q2, double& q3){
@@ -124,6 +129,8 @@ void setup() {
   Encoders.Encoder1.set(8192);
   Encoders.Encoder2.set(8192);
   Encoders.set(8192);
+  Serial.begin(115200);
+  nh.advertise(odometry_pub);
 
   //ps.set();
   // put your setup code here, to run once:
@@ -136,7 +143,7 @@ void setup() {
 void loop() {
   gyro.update();
   ps.update();
-  pixy.update();
+  //pixy.update();
   using_cmd_vel=digitalRead(30);
 /*
   if(!using_cmd_vel){
@@ -232,7 +239,7 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
     r_vel.max_i(0.3);
     l_vel.max_i(0.3);
   }
-
+  /*
   //人検出の処理
   const int max_power_dis=110;
   pixypid.update(pixy.point_x(),0);
@@ -281,10 +288,11 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
 
 
   pre_d=ditect_mode;
-
+*/
 //モータへの出力/////////////////////////////////////
   if(using_cmd_vel){
 //人検出
+/*
     if(gomi_mode==1){
       rmo.writeMicroseconds(1500+constrain(pixypid.result_val()-dis_result,-max_power,max_power));
       lmo.writeMicroseconds(1500+constrain(pixypid.result_val()+dis_result,-max_power,max_power));
@@ -292,9 +300,9 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
     else if(gomi_mode==2){
       rmo.writeMicroseconds(1500);
       lmo.writeMicroseconds(1500);
-    }
+    }*/
 //cmd_velで走行
-    else{
+    //else{
       if(-0.03<(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
         rmo.writeMicroseconds(1500);
         r_vel.reset_i();
@@ -310,13 +318,14 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
         lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-max_power*!dir_l,max_power*dir_l));
       }
     }
-  }
+  //}
 //コントローラから操作
   else{
     rmo.writeMicroseconds(map(0.6*(ps.A_Ly()+ps.A_Rx()-255),127,-127,1500-max_power,1500+max_power));
     lmo.writeMicroseconds(map(0.6*(ps.A_Ly()-ps.A_Rx()),-127,127,1500-max_power,1500+max_power));
   }
-
+  odometry.data = 1.0;
+  odometry_pub.publish(&odometry);
    nh.spinOnce();
    //cout<<r_rot<<","<<target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw<<","<<gyro.rad()<<endl;
    //cout<<"X="<<pos_x<<"Y="<<pos_y<<"YAW="<<angle_rad-angle_offset<<endl;
