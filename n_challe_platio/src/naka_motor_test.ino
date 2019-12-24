@@ -32,6 +32,7 @@ int x, y, z;
 MD13S lmo(6, 5); //(PWM_PIN,invert_PIN)
 MD13S rmo(8,7);
 PS3I2C ps(0x73);
+PS3I2C psm(0x74);
 int lp=1500,rp=1500;
 double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
@@ -143,6 +144,24 @@ void setup() {
 void loop() {
   gyro.update();
   ps.update();
+  psm.update();
+  static bool useing_line_con=false;
+  static int A_Ly=0;
+  static int A_Rx=0;
+  if(ps.C_Select()){
+    useing_line_con=false;
+  }
+  if(psm.C_Select()){
+    useing_line_con=true;
+  }
+  if(useing_line_con){
+    A_Ly=psm.A_Ly();
+    A_Rx=psm.A_Rx();
+  }
+  else{
+    A_Ly=ps.A_Ly();
+    A_Rx=ps.A_Rx();
+  }
   //pixy.update();
   using_cmd_vel=digitalRead(30);
 /*
@@ -321,11 +340,16 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   //}
 //コントローラから操作
   else{
-    rmo.writeMicroseconds(map(0.6*(ps.A_Ly()+ps.A_Rx()-255),127,-127,1500-max_power,1500+max_power));
-    lmo.writeMicroseconds(map(0.6*(ps.A_Ly()-ps.A_Rx()),-127,127,1500-max_power,1500+max_power));
+    rmo.writeMicroseconds(map(0.8*(A_Ly+A_Rx-255),127,-127,1500-max_power,1500+max_power));
+    lmo.writeMicroseconds(map(0.8*(A_Ly-A_Rx),-127,127,1500-max_power,1500+max_power));
   }
-  odometry.data = 1.0;
+  //速度の送信
+  //double body_vel_x=(-Encoders.Encoder1.read_rpm()+Encoders.Encoder2.read_rpm())/2.0*PI/60.0*wheel_size/2.0/1000.0;
+  double body_vel_x=(-Encoders.Encoder1.read_rpm()+Encoders.Encoder2.read_rpm())*PI*wheel_size/(60.0*1000.0);
+
+  odometry.data = body_vel_x;
   odometry_pub.publish(&odometry);
+
    nh.spinOnce();
    //cout<<r_rot<<","<<target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw<<","<<gyro.rad()<<endl;
    //cout<<"X="<<pos_x<<"Y="<<pos_y<<"YAW="<<angle_rad-angle_offset<<endl;
