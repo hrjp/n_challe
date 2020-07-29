@@ -12,7 +12,7 @@
 
 
 #include "Gyro_fast.h"
-#include "Encoders.h"
+#include <Encoders.h>
 #include<cout.h>
 #include"Vector.h"
 #include"PID_lib.h"
@@ -154,7 +154,7 @@ void loop() {
   if(psm.C_Select()){
     useing_line_con=true;
   }
-  if(useing_line_con){
+  if(!useing_line_con){
     A_Ly=psm.A_Ly();
     A_Rx=psm.A_Rx();
   }
