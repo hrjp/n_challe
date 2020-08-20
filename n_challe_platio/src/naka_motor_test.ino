@@ -9,7 +9,8 @@
 #include <tf/transform_broadcaster.h>
 #include <nav_msgs/Odometry.h>
 #include <std_msgs/Float32.h>
-
+#include <std_msgs/Float32MultiArray.h>
+#include <std_msgs/Int32MultiArray.h>
 
 #include "Gyro_fast.h"
 #include <Encoders.h>
@@ -17,7 +18,7 @@
 #include"Vector.h"
 #include"PID_lib.h"
 #include "Pixy_analog.h"
-
+#include "Odometry.h"
 
 //1:rosからのcmd_velで動く
 //0:rosを介さずコントローラの値で動く
@@ -33,6 +34,13 @@ MD13S lmo(6, 5); //(PWM_PIN,invert_PIN)
 MD13S rmo(8,7);
 PS3I2C ps(0x73);
 PS3I2C psm(0x74);
+
+//新機体
+const double wheel_width=555.0;
+const double encoder_ppr=8192;
+const double wheel_size=315.0;
+Odometry odom(wheel_width,encoder_ppr,wheel_size);
+
 int lp=1500,rp=1500;
 double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
 
@@ -83,8 +91,9 @@ void messageCb(const geometry_msgs::Twist& twist) {
 }
 
 ros::NodeHandle nh;
-ros::Subscriber<geometry_msgs::Twist> sub("final_cmd_vel", &messageCb);
 
+ros::Subscriber<geometry_msgs::Twist> sub("final_cmd_vel", &messageCb);
+/*
 geometry_msgs::TransformStamped t;
 geometry_msgs::Twist send_pos;
 //ros::Publisher chatter("robot_msg", &send_pos);
@@ -92,32 +101,26 @@ geometry_msgs::Twist send_pos;
 tf::TransformBroadcaster broadcaster;
 
 
+
+
 char base_link[] = "/base_link";
 char odom[] = "/odom";
 
 std_msgs::Float32 odometry;
 ros::Publisher odometry_pub("robot_odom", &odometry);
+*/
+std_msgs::Float32MultiArray float_pub_array;
+std_msgs::Int32MultiArray int_pub_array;
+ros::Publisher int_pub("int_sensor_data", &int_pub_array);
+ros::Publisher float_pub("float_sensor_data", &float_pub_array);
 
 
-void EulerAnglesToQuaternion(double roll, double pitch, double yaw,double& q0, double& q1, double& q2, double& q3){
-    double cosRoll = cos(roll / 2.0);
-    double sinRoll = sin(roll / 2.0);
-    double cosPitch = cos(pitch / 2.0);
-    double sinPitch = sin(pitch / 2.0);
-    double cosYaw = cos(yaw / 2.0);
-    double sinYaw = sin(yaw / 2.0);
-
-    q0 = cosRoll * cosPitch * cosYaw + sinRoll * sinPitch * sinYaw;
-    q1 = sinRoll * cosPitch * cosYaw - cosRoll * sinPitch * sinYaw;
-    q2 = cosRoll * sinPitch * cosYaw + sinRoll * cosPitch * sinYaw;
-    q3 = cosRoll * cosPitch * sinYaw - sinRoll * sinPitch * cosYaw;
-}
 
 void setup() {
    Wire.begin();
    Wire.setSDA(34);
    Wire.setSCL(33);
-   Wire.setClock(400000UL);
+   //Wire.setClock(400000UL);
    gyro.set();
   analogWriteFrequency(6, 20000);
   analogWriteFrequency(8, 20000);
@@ -125,13 +128,27 @@ void setup() {
   digitalWrite(13,HIGH);
   nh.initNode();
   nh.subscribe(sub);
-  broadcaster.init(nh);
+  //broadcaster.init(nh);
   pinMode(30,INPUT_PULLUP);
   Encoders.Encoder1.set(8192);
   Encoders.Encoder2.set(8192);
   Encoders.set(8192);
   Serial.begin(115200);
-  nh.advertise(odometry_pub);
+
+  float_pub_array.data_length=4;
+  float_pub_array.data = (float *)malloc(sizeof(float)*4);
+  float_pub_array.data[0]=0.0;
+  float_pub_array.data[1]=0.0;
+  float_pub_array.data[2]=0.0;
+  float_pub_array.data[3]=0.0;
+
+  int_pub_array.data_length=2;
+  int_pub_array.data = (int32_t *)malloc(sizeof(int32_t)*2);
+  int_pub_array.data[0]=0.0;
+  int_pub_array.data[1]=0.0;
+
+  nh.advertise(int_pub);
+  nh.advertise(float_pub);
 
   //ps.set();
   // put your setup code here, to run once:
@@ -139,12 +156,18 @@ void setup() {
   rmo.set();
   r_vel.max_i(0.3);
   l_vel.max_i(0.3);
+
+  
 }
 
 void loop() {
+  //各センサー，モジュールの更新
+  
   gyro.update();
   ps.update();
   psm.update();
+  odom.update(Encoders.Encoder2.read_pulse(),Encoders.Encoder1.read_pulse(),gyro.rad());
+
   static bool useing_line_con=false;
   static int A_Ly=0;
   static int A_Rx=0;
@@ -154,7 +177,7 @@ void loop() {
   if(psm.C_Select()){
     useing_line_con=true;
   }
-  if(!useing_line_con){
+  if(useing_line_con){
     A_Ly=psm.A_Ly();
     A_Rx=psm.A_Rx();
   }
@@ -163,7 +186,10 @@ void loop() {
     A_Rx=ps.A_Rx();
   }
   //pixy.update();
+
+  //手動と自動の切り替えスイッチ
   using_cmd_vel=digitalRead(30);
+
 /*
   if(!using_cmd_vel){
     target_vel.y=0.8*((255-ps.A_Ly())/127.5-1.0);
@@ -173,20 +199,18 @@ void loop() {
 
 
   //odometry
-  long rpul= -Encoders.Encoder1.read_pulse();
-  long lpul= Encoders.Encoder2.read_pulse();
+  //long rpul= -Encoders.Encoder1.read_pulse();
+  //long lpul= Encoders.Encoder2.read_pulse();
+  
   //旧機体
   /*
   const double wheel_width=480.0;
   const double encoder_ppr=4096;
   const double wheel_size=150.0;
   */
-  //新機体
-  const double wheel_width=555.0;
-  const double encoder_ppr=8192;
-  const double wheel_size=315.0;
+  
 
-
+  /*
   static unsigned long pre_t=0;
   double dt=(micros()-pre_t)/1000000.0;
   pre_t=micros();
@@ -209,6 +233,7 @@ void loop() {
   pre_rad=angle_rad;
   body_vel.y=vel_liner;
   body_vel.yaw=vel_z;
+*/
 
 //タイヤ回転速度の計算
 /*
@@ -218,12 +243,15 @@ double l_rot=(lpul-pre_lpul)*wheel_size*PI/encoder_ppr/1000.0/dt;
 pre_rpul=rpul;
 pre_lpul=lpul;
 */
+//エンコーダから読み取ったタイヤの速度[m/s]
 double r_rot=-Encoders.Encoder1.read_rpm()*PI/60.0*wheel_size/1000.0;
 double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
-
+//タイヤの目標速度[m/s]
+double r_target=target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw;
+double l_target=target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw;
 
 //tf
-
+/*
   t.header.frame_id = odom;
   t.child_frame_id = base_link;
   //t.transform.translation.x = -pos_x;
@@ -242,11 +270,11 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   t.header.stamp = nh.now();
   broadcaster.sendTransform(t);
 
-
+*/
   //速度制御
   const int max_power=300;
-  r_vel.update(r_rot,target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw);
-  l_vel.update(l_rot,(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw));
+  r_vel.update(r_rot,r_target);
+  l_vel.update(l_rot,l_target);
   int dir_r=(target_vel.y+target_vel.yaw)>0;
   int dir_l=(target_vel.y-target_vel.yaw)>0;
 
@@ -322,20 +350,24 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
     }*/
 //cmd_velで走行
     //else{
-      if(-0.03<(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
+
+      if(-0.03<(r_target)&&(r_target)<0.03){
         rmo.writeMicroseconds(1500);
         r_vel.reset_i();
       }
       else{
         rmo.writeMicroseconds(1500+constrain(r_vel.result_val(),-max_power*!dir_r,max_power*dir_r));
       }
-      if(-0.03<(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)&&(target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw)<0.03){
+
+
+      if(-0.03<(l_target)&&(l_target)<0.03){
         lmo.writeMicroseconds(1500);
         l_vel.reset_i();
       }
       else{
         lmo.writeMicroseconds(1500-constrain(l_vel.result_val(),-max_power*!dir_l,max_power*dir_l));
       }
+
     }
   //}
 //コントローラから操作
@@ -347,10 +379,24 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
   //double body_vel_x=(-Encoders.Encoder1.read_rpm()+Encoders.Encoder2.read_rpm())/2.0*PI/60.0*wheel_size/2.0/1000.0;
   double body_vel_x=(-Encoders.Encoder1.read_rpm()+Encoders.Encoder2.read_rpm())*PI*wheel_size/(60.0*1000.0);
 
-  odometry.data = body_vel_x;
-  odometry_pub.publish(&odometry);
+  //odometry.data = body_vel_x;
+  //odometry_pub.publish(&odometry);
 
-   nh.spinOnce();
+
+  //publishするデータの準備
+  //TF map->base_link
+  float_pub_array.data[0]=odom.vec.y;//x
+  float_pub_array.data[1]=odom.vec.x;//y
+  float_pub_array.data[2]=odom.vec.yaw;//yaw
+  //速度の送信
+  float_pub_array.data[3]=body_vel_x;//直進速度
+
+  //データのpublish
+  float_pub.publish(&float_pub_array);
+  int_pub.publish(&int_pub_array);
+  nh.spinOnce();
+
+  //cout<<float_pub_array.data[0]<<float_pub_array.data[1]<<float_pub_array.data[2]<<endl;
    //cout<<r_rot<<","<<target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw<<","<<gyro.rad()<<endl;
    //cout<<"X="<<pos_x<<"Y="<<pos_y<<"YAW="<<angle_rad-angle_offset<<endl;
 /*
