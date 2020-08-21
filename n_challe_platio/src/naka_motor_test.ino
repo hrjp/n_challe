@@ -12,13 +12,16 @@
 #include <std_msgs/Float32MultiArray.h>
 #include <std_msgs/Int32MultiArray.h>
 
-#include "Gyro_fast.h"
+//#include "Gyro_fast.h"
+#include "Gyro_9axis.h"
 #include <Encoders.h>
-#include<cout.h>
-#include"Vector.h"
-#include"PID_lib.h"
+#include <cout.h>
+#include "Vector.h"
+#include "PID_lib.h"
 #include "Pixy_analog.h"
 #include "Odometry.h"
+#include "GPS.h"
+
 
 //1:rosからのcmd_velで動く
 //0:rosを介さずコントローラの値で動く
@@ -27,8 +30,8 @@
 
 
 ENCODERS Encoders(45,48);
-Gyro_fast gyro;
-
+Gyro_9axis gyro;
+GPS gps;
 int x, y, z;
 MD13S lmo(6, 5); //(PWM_PIN,invert_PIN)
 MD13S rmo(8,7);
@@ -122,6 +125,7 @@ void setup() {
    Wire.setSCL(33);
    //Wire.setClock(400000UL);
    gyro.set();
+   gps.set();
   analogWriteFrequency(6, 20000);
   analogWriteFrequency(8, 20000);
   pinMode(13,OUTPUT);
@@ -135,17 +139,21 @@ void setup() {
   Encoders.set(8192);
   Serial.begin(115200);
 
-  float_pub_array.data_length=4;
-  float_pub_array.data = (float *)malloc(sizeof(float)*4);
+  
+  float_pub_array.data = (float *)malloc(sizeof(float)*5);
+  float_pub_array.data_length=5;
   float_pub_array.data[0]=0.0;
   float_pub_array.data[1]=0.0;
   float_pub_array.data[2]=0.0;
   float_pub_array.data[3]=0.0;
+  float_pub_array.data[4]=0.0;
 
-  int_pub_array.data_length=2;
-  int_pub_array.data = (int32_t *)malloc(sizeof(int32_t)*2);
+  
+  int_pub_array.data = (int32_t *)malloc(sizeof(int32_t)*3);
+  int_pub_array.data_length=3;
   int_pub_array.data[0]=0.0;
   int_pub_array.data[1]=0.0;
+  int_pub_array.data[2]=0.0;
 
   nh.advertise(int_pub);
   nh.advertise(float_pub);
@@ -156,14 +164,13 @@ void setup() {
   rmo.set();
   r_vel.max_i(0.3);
   l_vel.max_i(0.3);
-
-  
 }
 
 void loop() {
   //各センサー，モジュールの更新
   
   gyro.update();
+  gps.update();
   ps.update();
   psm.update();
   odom.update(Encoders.Encoder2.read_pulse(),Encoders.Encoder1.read_pulse(),gyro.rad());
@@ -390,6 +397,12 @@ double l_target=target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw;
   float_pub_array.data[2]=odom.vec.yaw;//yaw
   //速度の送信
   float_pub_array.data[3]=body_vel_x;//直進速度
+  //絶対方位
+  float_pub_array.data[4]=gyro.magyaw();//magyaw
+  //GPS
+  int_pub_array.data[0]=gps.latitude;
+  int_pub_array.data[1]=gps.longitude;
+  int_pub_array.data[2]=gps.altitude;
 
   //データのpublish
   float_pub.publish(&float_pub_array);
