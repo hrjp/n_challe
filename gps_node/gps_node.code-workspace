@@ -1,0 +1,12 @@
+{
+	"folders": [
+		{
+			"path": "../n_challe_platio"
+		},
+		{
+			"name": "gps_node",
+			"path": "."
+		}
+	],
+	"settings": {}
+}

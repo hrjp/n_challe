@@ -48,7 +48,7 @@ float Gyro_9axis::degz(){
 }
 
 double Gyro_9axis::rad(){
-  return yaw;
+  return -yaw;
 }
 
 double Gyro_9axis::magyaw(){

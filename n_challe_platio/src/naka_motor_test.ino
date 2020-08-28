@@ -20,7 +20,7 @@
 #include "PID_lib.h"
 #include "Pixy_analog.h"
 #include "Odometry.h"
-#include "GPS.h"
+//#include "GPS.h"
 
 
 //1:rosからのcmd_velで動く
@@ -31,7 +31,7 @@
 
 ENCODERS Encoders(45,48);
 Gyro_9axis gyro;
-GPS gps;
+//GPS gps;
 int x, y, z;
 MD13S lmo(6, 5); //(PWM_PIN,invert_PIN)
 MD13S rmo(8,7);
@@ -41,8 +41,8 @@ PS3I2C psm(0x74);
 //新機体
 const double wheel_width=555.0;
 const double encoder_ppr=8192;
-const double wheel_size=315.0;
-Odometry odom(wheel_width,encoder_ppr,wheel_size);
+const double wheel_size=315.0;//空気圧で変動
+Odometry odom(wheel_width,encoder_ppr,wheel_size*0.95);
 
 int lp=1500,rp=1500;
 double pos_x,pos_y,angle_offset,angle_deg,angle_rad;
@@ -114,7 +114,7 @@ ros::Publisher odometry_pub("robot_odom", &odometry);
 */
 std_msgs::Float32MultiArray float_pub_array;
 std_msgs::Int32MultiArray int_pub_array;
-ros::Publisher int_pub("int_sensor_data", &int_pub_array);
+//ros::Publisher int_pub("int_sensor_data", &int_pub_array);
 ros::Publisher float_pub("float_sensor_data", &float_pub_array);
 
 
@@ -125,7 +125,7 @@ void setup() {
    Wire.setSCL(33);
    //Wire.setClock(400000UL);
    gyro.set();
-   gps.set();
+   //gps.set();
   analogWriteFrequency(6, 20000);
   analogWriteFrequency(8, 20000);
   pinMode(13,OUTPUT);
@@ -148,14 +148,14 @@ void setup() {
   float_pub_array.data[3]=0.0;
   float_pub_array.data[4]=0.0;
 
-  
+  /*
   int_pub_array.data = (int32_t *)malloc(sizeof(int32_t)*3);
   int_pub_array.data_length=3;
   int_pub_array.data[0]=0.0;
   int_pub_array.data[1]=0.0;
   int_pub_array.data[2]=0.0;
-
-  nh.advertise(int_pub);
+*/
+ // nh.advertise(int_pub);
   nh.advertise(float_pub);
 
   //ps.set();
@@ -170,7 +170,7 @@ void loop() {
   //各センサー，モジュールの更新
   
   gyro.update();
-  gps.update();
+  //gps.update();
   ps.update();
   psm.update();
   odom.update(Encoders.Encoder2.read_pulse(),Encoders.Encoder1.read_pulse(),gyro.rad());
@@ -400,13 +400,13 @@ double l_target=target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw;
   //絶対方位
   float_pub_array.data[4]=gyro.magyaw();//magyaw
   //GPS
-  int_pub_array.data[0]=gps.latitude;
-  int_pub_array.data[1]=gps.longitude;
-  int_pub_array.data[2]=gps.altitude;
+  //int_pub_array.data[0]=gps.latitude;
+  //int_pub_array.data[1]=gps.longitude;
+  //int_pub_array.data[2]=gps.altitude;
 
   //データのpublish
   float_pub.publish(&float_pub_array);
-  int_pub.publish(&int_pub_array);
+  //int_pub.publish(&int_pub_array);
   nh.spinOnce();
 
   //cout<<float_pub_array.data[0]<<float_pub_array.data[1]<<float_pub_array.data[2]<<endl;
