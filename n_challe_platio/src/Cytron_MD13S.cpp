@@ -22,12 +22,19 @@
 MD13S::MD13S(int _PWM_PIN, int _invert_PIN){
     PWM_PIN = _PWM_PIN;
     invert_PIN = _invert_PIN;
+    analogWriteFrequency(PWM_PIN, 20000);
+    pinMode(PWM_PIN, OUTPUT);
+    pinMode(invert_PIN, OUTPUT);
+    
+    digitalWrite(invert_PIN, LOW);
+    analogWrite(PWM_PIN,LOW);
 }
 
+/*
 void MD13S::set(){
     pinMode(PWM_PIN, OUTPUT);
     pinMode(invert_PIN, OUTPUT);
-}
+}*/
 
 // Teensy用に周波数変更の関数追加予定
 

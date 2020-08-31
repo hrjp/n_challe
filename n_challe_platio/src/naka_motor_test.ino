@@ -126,8 +126,8 @@ void setup() {
    //Wire.setClock(400000UL);
    gyro.set();
    //gps.set();
-  analogWriteFrequency(6, 20000);
-  analogWriteFrequency(8, 20000);
+  //analogWriteFrequency(6, 20000);
+  //analogWriteFrequency(8, 20000);
   pinMode(13,OUTPUT);
   digitalWrite(13,HIGH);
   nh.initNode();
@@ -160,8 +160,9 @@ void setup() {
 
   //ps.set();
   // put your setup code here, to run once:
+  /*
   lmo.set();
-  rmo.set();
+  rmo.set();*/
   r_vel.max_i(0.3);
   l_vel.max_i(0.3);
 }

@@ -13,7 +13,7 @@ class MD13S {
 
       MD13S(int _PWM_PIN, int _invert_PIN);
    
-      void set();
+      //void set();
    
       void writeMicroseconds(int _pulse);
       
