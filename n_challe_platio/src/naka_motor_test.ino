@@ -31,7 +31,6 @@
 
 ENCODERS Encoders(45,48);
 Gyro_9axis gyro;
-//GPS gps;
 int x, y, z;
 MD13S lmo(6, 5); //(PWM_PIN,invert_PIN)
 MD13S rmo(8,7);
@@ -100,25 +99,8 @@ void messageCb(const geometry_msgs::Twist& twist) {
 ros::NodeHandle nh;
 
 ros::Subscriber<geometry_msgs::Twist> sub("final_cmd_vel", &messageCb);
-/*
-geometry_msgs::TransformStamped t;
-geometry_msgs::Twist send_pos;
-//ros::Publisher chatter("robot_msg", &send_pos);
 
-tf::TransformBroadcaster broadcaster;
-
-
-
-
-char base_link[] = "/base_link";
-char odom[] = "/odom";
-
-std_msgs::Float32 odometry;
-ros::Publisher odometry_pub("robot_odom", &odometry);
-*/
 std_msgs::Float32MultiArray float_pub_array;
-std_msgs::Int32MultiArray int_pub_array;
-//ros::Publisher int_pub("int_sensor_data", &int_pub_array);
 ros::Publisher float_pub("float_sensor_data", &float_pub_array);
 
 
@@ -129,14 +111,10 @@ void setup() {
    Wire.setSCL(33);
    //Wire.setClock(400000UL);
    gyro.set();
-   //gps.set();
-  //analogWriteFrequency(6, 20000);
-  //analogWriteFrequency(8, 20000);
   pinMode(13,OUTPUT);
   digitalWrite(13,HIGH);
   nh.initNode();
   nh.subscribe(sub);
-  //broadcaster.init(nh);
   pinMode(30,INPUT_PULLUP);
   Encoders.Encoder1.set(8192);
   Encoders.Encoder2.set(8192);
@@ -151,22 +129,7 @@ void setup() {
   float_pub_array.data[2]=0.0;
   float_pub_array.data[3]=0.0;
   float_pub_array.data[4]=0.0;
-
-  /*
-  int_pub_array.data = (int32_t *)malloc(sizeof(int32_t)*3);
-  int_pub_array.data_length=3;
-  int_pub_array.data[0]=0.0;
-  int_pub_array.data[1]=0.0;
-  int_pub_array.data[2]=0.0;
-*/
- // nh.advertise(int_pub);
   nh.advertise(float_pub);
-
-  //ps.set();
-  // put your setup code here, to run once:
-  /*
-  lmo.set();
-  rmo.set();*/
   r_vel.max_i(0.3);
   l_vel.max_i(0.3);
 }
@@ -175,7 +138,6 @@ void loop() {
   //各センサー，モジュールの更新
   
   gyro.update();
-  //gps.update();
   ps.update();
   psm.update();
   odom.update(Encoders.Encoder2.read_pulse(),Encoders.Encoder1.read_pulse(),gyro.rad());
@@ -202,59 +164,6 @@ void loop() {
   //手動と自動の切り替えスイッチ
   using_cmd_vel=digitalRead(30);
 
-/*
-  if(!using_cmd_vel){
-    target_vel.y=0.8*((255-ps.A_Ly())/127.5-1.0);
-    target_vel.yaw=0.7*((255-ps.A_Rx())/127.5-1.0);
-  }
-*/
-
-
-  //odometry
-  //long rpul= -Encoders.Encoder1.read_pulse();
-  //long lpul= Encoders.Encoder2.read_pulse();
-  
-  //旧機体
-  /*
-  const double wheel_width=480.0;
-  const double encoder_ppr=4096;
-  const double wheel_size=150.0;
-  */
-  
-
-  /*
-  static unsigned long pre_t=0;
-  double dt=(micros()-pre_t)/1000000.0;
-  pre_t=micros();
-  static double pre_rad;
-  angle_deg=((rpul-lpul)/2.0)*180.0*wheel_size/(encoder_ppr*wheel_width*0.5);
-  //angle_rad=angle_deg*PI/180;
-  angle_rad=-gyro.rad();
-  static long pre_pul;
-  long now_pul=rpul+lpul;
-  double diff_pos=((now_pul-pre_pul)/2.0)*wheel_size*PI/encoder_ppr/1000.0;
-  pre_pul=now_pul;
-
-  pos_y+=diff_pos*cos((angle_rad+pre_rad)/2.0-angle_offset);
-  pos_x+=diff_pos*sin((angle_rad+pre_rad)/2.0-angle_offset);
-
-  double vel_liner=diff_pos/dt;
-  double vel_x=diff_pos*cos(angle_rad)/dt;
-  double vel_y=diff_pos*sin(angle_rad)/dt;
-  double vel_z=(angle_rad-pre_rad)/dt;
-  pre_rad=angle_rad;
-  body_vel.y=vel_liner;
-  body_vel.yaw=vel_z;
-*/
-
-//タイヤ回転速度の計算
-/*
-static long pre_rpul,pre_lpul;
-double r_rot=(rpul-pre_rpul)*wheel_size*PI/encoder_ppr/1000.0/dt;
-double l_rot=(lpul-pre_lpul)*wheel_size*PI/encoder_ppr/1000.0/dt;
-pre_rpul=rpul;
-pre_lpul=lpul;
-*/
 //エンコーダから読み取ったタイヤの速度[m/s]
 double r_rot=-Encoders.Encoder1.read_rpm()*PI/60.0*wheel_size/1000.0;
 double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
@@ -262,27 +171,6 @@ double l_rot=Encoders.Encoder2.read_rpm()*PI/60.0*wheel_size/1000.0;
 double r_target=target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw;
 double l_target=target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw;
 
-//tf
-/*
-  t.header.frame_id = odom;
-  t.child_frame_id = base_link;
-  //t.transform.translation.x = -pos_x;
-  //t.transform.translation.y = pos_y;
-  t.transform.translation.x = pos_y;
-  t.transform.translation.y = pos_x;
-  //t.transform.translation.x = -pos_x;
-  //t.transform.translation.y = -pos_y;
-  double qu[5];
-  EulerAnglesToQuaternion(0,0,angle_rad-angle_offset,qu[0],qu[1],qu[2],qu[3]);
-
-  t.transform.rotation.x = qu[1];
-  t.transform.rotation.y = qu[2];
-  t.transform.rotation.z = qu[3];
-  t.transform.rotation.w = qu[0];
-  t.header.stamp = nh.now();
-  broadcaster.sendTransform(t);
-
-*/
   //速度制御
   const int max_power=300;
   r_vel.update(r_rot,r_target);
@@ -391,9 +279,6 @@ double l_target=target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw;
   //double body_vel_x=(-Encoders.Encoder1.read_rpm()+Encoders.Encoder2.read_rpm())/2.0*PI/60.0*wheel_size/2.0/1000.0;
   double body_vel_x=(-Encoders.Encoder1.read_rpm()+Encoders.Encoder2.read_rpm())*PI*wheel_size/(60.0*1000.0);
 
-  //odometry.data = body_vel_x;
-  //odometry_pub.publish(&odometry);
-
 
   //publishするデータの準備
   //TF map->base_link
@@ -404,11 +289,7 @@ double l_target=target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw;
   float_pub_array.data[3]=body_vel_x;//直進速度
   //絶対方位
   float_pub_array.data[4]=gyro.magyaw();//magyaw
-  //GPS
-  //int_pub_array.data[0]=gps.latitude;
-  //int_pub_array.data[1]=gps.longitude;
-  //int_pub_array.data[2]=gps.altitude;
-
+  
   //データのpublish
   float_pub.publish(&float_pub_array);
   //int_pub.publish(&int_pub_array);
@@ -417,13 +298,5 @@ double l_target=target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw;
   //cout<<float_pub_array.data[0]<<float_pub_array.data[1]<<float_pub_array.data[2]<<endl;
    //cout<<r_rot<<","<<target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw<<","<<gyro.rad()<<endl;
    //cout<<"X="<<pos_x<<"Y="<<pos_y<<"YAW="<<angle_rad-angle_offset<<endl;
-/*
-   if(ps.C_Select()){
-    pos_x=0;
-    pos_y=0;
-    angle_offset=angle_rad;
-  }*/
 
 }
-
-//platformio_add
