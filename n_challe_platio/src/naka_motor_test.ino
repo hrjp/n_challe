@@ -119,7 +119,7 @@ void setup() {
   Encoders.Encoder1.set(8192);
   Encoders.Encoder2.set(8192);
   Encoders.set(8192);
-  Serial.begin(115200);
+  Serial.begin(57600);
 
   
   float_pub_array.data = (float *)malloc(sizeof(float)*5);

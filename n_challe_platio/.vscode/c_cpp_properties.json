@@ -38,6 +38,8 @@
                 "/Users/syunya/Documents/Arduino/libraries/SD/src",
                 "/Users/syunya/Documents/Arduino/libraries/SpacebrewYun/src",
                 "/Users/syunya/Documents/Arduino/libraries/Teensy_CAN/src",
+                "/Users/syunya/Documents/Arduino/libraries/USBHost_t36-master",
+                "/Users/syunya/Documents/Arduino/libraries/USBHost_t36-master/utility",
                 "/Users/syunya/Documents/Arduino/libraries/USB_Host_Shield_2.0-master",
                 "/Users/syunya/Documents/Arduino/libraries/VL53L0X",
                 "/Users/syunya/Documents/Arduino/libraries/ps3btlibrary",
@@ -171,6 +173,8 @@
                     "/Users/syunya/Documents/Arduino/libraries/SD/src",
                     "/Users/syunya/Documents/Arduino/libraries/SpacebrewYun/src",
                     "/Users/syunya/Documents/Arduino/libraries/Teensy_CAN/src",
+                    "/Users/syunya/Documents/Arduino/libraries/USBHost_t36-master",
+                    "/Users/syunya/Documents/Arduino/libraries/USBHost_t36-master/utility",
                     "/Users/syunya/Documents/Arduino/libraries/USB_Host_Shield_2.0-master",
                     "/Users/syunya/Documents/Arduino/libraries/VL53L0X",
                     "/Users/syunya/Documents/Arduino/libraries/ps3btlibrary",
@@ -272,7 +276,7 @@
                 ]
             },
             "defines": [
-                "PLATFORMIO=50001",
+                "PLATFORMIO=50003",
                 "__MK64FX512__",
                 "ARDUINO_TEENSY35",
                 "USB_SERIAL",
@@ -283,7 +287,7 @@
                 "LAYOUT_US_ENGLISH",
                 ""
             ],
-            "intelliSenseMode": "clang-x64",
+            "intelliSenseMode": "gcc-x64",
             "cppStandard": "c++14",
             "compilerPath": "/Users/syunya/.platformio/packages/toolchain-gccarmnoneeabi/bin/arm-none-eabi-gcc",
             "compilerArgs": [
