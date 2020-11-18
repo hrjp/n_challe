@@ -14,6 +14,9 @@ class Gyro_9axis{
   float degz();
   double rad();
   double magyaw();
+  imu::Quaternion quat;
+  imu::Vector<3> angular_vel;
+  imu::Vector<3> accel;
   private:
   double yaw,myaw;//[rad]
   Adafruit_BNO055 bno;
@@ -36,7 +39,10 @@ void Gyro_9axis::set(){
 
 void Gyro_9axis::update(){
   imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
-  imu::Quaternion quat = bno.getQuat();
+  quat = bno.getQuat();
+  accel=bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);// m/s^2
+  angular_vel=bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);// rad/s
+
   double roll,pitch;
   myaw=atan2(mag.x(),mag.y())-TRUE_NORTH_OFFSET_DEG*DEG_TO_RAD;
   QuaternionToEulerAngles(quat.w(),quat.x(),quat.y(),quat.z(),roll,pitch,yaw);
