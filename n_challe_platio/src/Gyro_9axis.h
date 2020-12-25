@@ -14,10 +14,13 @@ class Gyro_9axis{
   float degz();
   double rad();
   double magyaw();
+  double getPitch();
+  double getRoll();
   imu::Quaternion quat;
   imu::Vector<3> angular_vel;
   imu::Vector<3> accel;
   private:
+  double roll,pitch;
   double yaw,myaw;//[rad]
   Adafruit_BNO055 bno;
   void QuaternionToEulerAngles(double q0, double q1, double q2, double q3,
@@ -43,7 +46,7 @@ void Gyro_9axis::update(){
   accel=bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);// m/s^2
   angular_vel=bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);// rad/s
 
-  double roll,pitch;
+  
   myaw=atan2(mag.x(),mag.y())-TRUE_NORTH_OFFSET_DEG*DEG_TO_RAD;
   QuaternionToEulerAngles(quat.w(),quat.x(),quat.y(),quat.z(),roll,pitch,yaw);
   //Serial.print(absyaw*180/3.141592-7.0);
@@ -77,4 +80,12 @@ void Gyro_9axis::QuaternionToEulerAngles(double q0, double q1, double q2, double
     roll = atan2(2.0 * (q2q3 + q0q1), q0q0 - q1q1 - q2q2 + q3q3);
     pitch = asin(2.0 * (q0q2 - q1q3));
     yaw = atan2(2.0 * (q1q2 + q0q3), q0q0 + q1q1 - q2q2 - q3q3);
+}
+
+double Gyro_9axis::getPitch(){
+  return pitch;
+}
+
+double Gyro_9axis::getRoll(){
+  return roll;
 }

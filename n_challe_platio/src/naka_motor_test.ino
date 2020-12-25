@@ -142,7 +142,7 @@ void loop() {
   gyro.update();
   ps.update();
   psm.update();
-  odom.update(Encoders.Encoder2.read_pulse(),Encoders.Encoder1.read_pulse(),gyro.rad());
+  odom.update(Encoders.Encoder2.read_pulse(),Encoders.Encoder1.read_pulse(),gyro.rad(),-gyro.getRoll());
 
   static bool useing_line_con=false;
   static int A_Ly=0;
@@ -313,7 +313,7 @@ double l_target=target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw;
   //float_pub.publish(&float_pub_array);
   //int_pub.publish(&int_pub_array);
   nh.spinOnce();
-
+  //cout<<gyro.getPitch()<<endl;
   //cout<<float_pub_array.data[0]<<float_pub_array.data[1]<<float_pub_array.data[2]<<endl;
    //cout<<r_rot<<","<<target_vel.y+0.5*wheel_width/1000.0*target_vel.yaw<<","<<gyro.rad()<<endl;
    //cout<<"X="<<pos_x<<"Y="<<pos_y<<"YAW="<<angle_rad-angle_offset<<endl;
