@@ -23,7 +23,6 @@
 #include "Odometry.h"
 //#include "GPS.h"
 
-
 //1:rosからのcmd_velで動く
 //0:rosを介さずコントローラの値で動く
 
@@ -76,6 +75,8 @@ bool using_cmd_vel;
 //double human_dis;
 //Pixy_analog pixy(A7);
 
+const int e_stop_pin=22;
+
 void messageCb(const geometry_msgs::Twist& twist) {
   //const float linear_x = 6*twist.linear.x;
   //const float angle_z = 0.5*twist.angular.z;
@@ -83,6 +84,12 @@ void messageCb(const geometry_msgs::Twist& twist) {
     target_vel.y=2.0*twist.linear.x;
     target_vel.yaw=0.6*twist.angular.z;
     target_vel.x=twist.linear.y;
+
+  if(!digitalRead(e_stop_pin)){
+    target_vel.y=0;
+    target_vel.yaw=0;
+  }
+
     //human_dis=twist.linear.y;
     //ditect_mode=twist.angular.x;
   //}
@@ -104,6 +111,7 @@ ros::Subscriber<geometry_msgs::Twist> sub("final_cmd_vel", &messageCb);
 //std_msgs::Float32MultiArray float_pub_array;
 //ros::Publisher float_pub("float_sensor_data", &float_pub_array);
 RosArrayPublisher<std_msgs::Float32MultiArray> float_pub(nh,"float_sensor_data",15);
+
 
 
 void setup() {
@@ -134,6 +142,8 @@ void setup() {
   */
   r_vel.max_i(0.3);
   l_vel.max_i(0.3);
+
+  pinMode(e_stop_pin,INPUT_PULLUP);
 }
 
 void loop() {
