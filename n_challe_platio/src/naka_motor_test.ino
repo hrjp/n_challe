@@ -110,7 +110,7 @@ ros::Subscriber<geometry_msgs::Twist> sub("final_cmd_vel", &messageCb);
 
 //std_msgs::Float32MultiArray float_pub_array;
 //ros::Publisher float_pub("float_sensor_data", &float_pub_array);
-RosArrayPublisher<std_msgs::Float32MultiArray> float_pub(nh,"float_sensor_data",15);
+RosArrayPublisher<std_msgs::Float32MultiArray> float_pub(nh,"float_sensor_data",20);
 
 
 
@@ -153,6 +153,7 @@ void loop() {
   ps.update();
   psm.update();
   odom.update(Encoders.Encoder2.read_pulse(),Encoders.Encoder1.read_pulse(),gyro.rad(),-gyro.getRoll());
+  odom.update2d(Encoders.Encoder2.read_pulse(),Encoders.Encoder1.read_pulse(),gyro.rad());
 
   static bool useing_line_con=false;
   static int A_Ly=0;
@@ -290,22 +291,31 @@ double l_target=target_vel.y-0.5*wheel_width/1000.0*target_vel.yaw;
   //速度の送信
   //double body_vel_x=(-Encoders.Encoder1.read_rpm()+Encoders.Encoder2.read_rpm())/2.0*PI/60.0*wheel_size/2.0/1000.0;
   double body_vel_x=(-Encoders.Encoder1.read_rpm()+Encoders.Encoder2.read_rpm())*PI*wheel_size/(60.0*1000.0);
-
+ //3d odom
   float_pub.array.data[0]=odom.vec.x;//x
   float_pub.array.data[1]=odom.vec.y;//y
   float_pub.array.data[2]=odom.vec.z;//z
+  //imu
   float_pub.array.data[3]=gyro.accel.x();//x
   float_pub.array.data[4]=gyro.accel.y();//y
   float_pub.array.data[5]=gyro.accel.z();//z
-  float_pub.array.data[6]=gyro.angular_vel.x();//x
-  float_pub.array.data[7]=gyro.angular_vel.y();//y
-  float_pub.array.data[8]=gyro.angular_vel.z();//z
+  float_pub.array.data[6]=gyro.angular_vel.x()*DEG_TO_RAD;//x
+  float_pub.array.data[7]=gyro.angular_vel.y()*DEG_TO_RAD;//y
+  float_pub.array.data[8]=gyro.angular_vel.z()*DEG_TO_RAD;//z
   float_pub.array.data[9]=gyro.quat.x();//x
   float_pub.array.data[10]=gyro.quat.y();//y
   float_pub.array.data[11]=gyro.quat.z();//z
   float_pub.array.data[12]=gyro.quat.w();//w
+
   float_pub.array.data[13]=body_vel_x;//直進速度
   float_pub.array.data[14]=odom.vec.yaw;//yaw
+  //imu mag
+  float_pub.array.data[15]=gyro.mag.x();//x
+  float_pub.array.data[16]=gyro.mag.y();//y
+  float_pub.array.data[17]=gyro.mag.z();//z
+  //2d odom
+  float_pub.array.data[18]=odom.vec2d.x;//x
+  float_pub.array.data[19]=odom.vec2d.y;//y
   float_pub.publish();
   //quat
   //publishするデータの準備

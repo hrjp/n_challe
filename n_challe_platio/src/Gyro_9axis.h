@@ -19,6 +19,7 @@ class Gyro_9axis{
   imu::Quaternion quat;
   imu::Vector<3> angular_vel;
   imu::Vector<3> accel;
+  imu::Vector<3> mag;
   private:
   double roll,pitch;
   double yaw,myaw;//[rad]
@@ -41,7 +42,7 @@ void Gyro_9axis::set(){
 }
 
 void Gyro_9axis::update(){
-  imu::Vector<3> mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
+  mag = bno.getVector(Adafruit_BNO055::VECTOR_MAGNETOMETER);
   quat = bno.getQuat();
   accel=bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);// m/s^2
   angular_vel=bno.getVector(Adafruit_BNO055::VECTOR_GYROSCOPE);// rad/s

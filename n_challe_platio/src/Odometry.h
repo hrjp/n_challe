@@ -7,10 +7,13 @@ public:
           const double encoder_ppr=8192,
           const double wheel_size=315.0);
   Vector update(long l_enc,long r_enc,double gyro_yaw,double pitch);
+  Vector update2d(long l_enc,long r_enc,double gyro_yaw);
   Vector vec;
+  Vector vec2d;
 private:
   double pre_rad;
   long pre_pul;
+  long pre_pul2d;
   double wheel_width;
   double encoder_ppr;
   double wheel_size;
@@ -41,4 +44,22 @@ Vector Odometry::update(long l_enc,long r_enc,double gyro_yaw,double pitch){
   //vec.yaw=angle_rad;
   //pre_rad=angle_rad;
   return vec;
+}
+
+Vector Odometry::update2d(long l_enc,long r_enc,double gyro_yaw){
+  //odometry
+  long rpul= -r_enc;
+  long lpul= l_enc;
+
+  double angle_rad=-gyro_yaw;
+
+  long now_pul=rpul+lpul;
+  double diff_pos=((now_pul-pre_pul2d)/2.0)*wheel_size*PI/encoder_ppr/1000.0;
+  pre_pul2d=now_pul;
+
+  vec2d.y+=diff_pos*cos(angle_rad);
+  vec2d.x+=diff_pos*sin(angle_rad);
+  //vec.yaw=angle_rad;
+  //pre_rad=angle_rad;
+  return vec2d;
 }
