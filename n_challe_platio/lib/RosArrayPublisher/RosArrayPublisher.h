@@ -31,7 +31,8 @@ template<typename ARRAY_TYPE> class RosArrayPublisher{
 template<typename ARRAY_TYPE>
 RosArrayPublisher<ARRAY_TYPE>::RosArrayPublisher(ros::NodeHandle& nh,const char *topic_name,int array_size):
 array_pub(topic_name, &array){
-    array.data=malloc(sizeof (array.data)*array_size);
+    array.data=decltype(array.data)(malloc(sizeof (array.data)*array_size));
+    //array.data=malloc(sizeof (array.data)*array_size);
     array.data_length=array_size;
     for(int i=0;i<array_size;i++){
         array.data[i]=0.0;
